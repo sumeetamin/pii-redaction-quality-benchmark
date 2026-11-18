@@ -4,7 +4,7 @@ A small exact-span evaluation of a deliberately limited regex redaction baseline
 
 ## Data
 
-Uses the [Ai4Privacy OpenPII 1M dataset](https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m), licensed CC BY 4.0. The dataset card describes the records as synthetic PII and lists research/commercial reuse with attribution. This run used 1,000 rows from ten evenly spaced 100-row windows in the official validation split, spanning nine observed language codes. The local sample CSV fingerprint is \`622f56149879d6f0eaf2cbf76e2eaf89e7f8dbbc3888df2549561d69a0c58c3d\`.
+Uses the [Ai4Privacy OpenPII 1M dataset](https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m), licensed CC BY 4.0. The dataset card describes the records as synthetic PII and lists research/commercial reuse with attribution. This run used 1,000 rows from ten evenly spaced 100-row windows in the official validation split, spanning nine observed language codes. The local sample CSV fingerprint is `622f56149879d6f0eaf2cbf76e2eaf89e7f8dbbc3888df2549561d69a0c58c3d`.
 
 ## Results
 
@@ -22,13 +22,13 @@ The regexes cover only email, US-formatted phone, and SSN patterns. Other labele
 
 ## Reproduce
 
-\`\`\`bash
+```bash
 python -m pip install -r requirements.txt
 python fetch_sample.py
 python main.py --input data/openpii_validation_sample.csv \\
   --dataset "Ai4Privacy OpenPII 1M" \\
   --source-url https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m \\
   --split-description "1,000 rows from ten evenly spaced windows in official validation"
-\`\`\`
+```
 
-The fetcher writes PII-like text locally under \`data/\`; the runner writes redacted text locally under \`outputs/\`. Both folders are ignored. No row-level text or redactions are published. Attribute the dataset to Ai4Privacy / Ai Suisse SA under CC BY 4.0. See the [aggregate report](reports/benchmark.json).
+The fetcher writes PII-like text locally under `data/`; the runner writes redacted text locally under `outputs/`. Both folders are ignored. No row-level text or redactions are published. Attribute the dataset to Ai4Privacy / Ai Suisse SA under CC BY 4.0. See the [aggregate report](reports/benchmark.json).
