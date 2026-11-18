@@ -1,6 +1,6 @@
 import unittest
 
-from main import canonical_type, detect, luhn_valid
+from main import canonical_type, detect, luhn_valid, redact_text
 
 
 class PiiDetectionTests(unittest.TestCase):
@@ -29,6 +29,20 @@ class PiiDetectionTests(unittest.TestCase):
         self.assertEqual(canonical_type("Phone"), "phone")
         self.assertEqual(canonical_type("SocialNum"), "ssn")
 
+    def test_redacts_overlapping_spans_without_corrupting_offsets(self):
+        text = "A 4111 1111 1111 1111 Z"
+        start = text.index("4111")
+        overlapping = [
+            (start, start + 19, "creditcardnumber"),
+            (start + 5, start + 14, "phone"),
+        ]
+        self.assertEqual(redact_text(text, overlapping), "A [REDACTED:multiple] Z")
+
+    def test_redaction_leaves_unmatched_text_and_handles_empty_spans(self):
+        self.assertEqual(redact_text("keep this", []), "keep this")
+        self.assertEqual(redact_text("a secret z", [(2, 8, "email")]), "a [REDACTED:email] z")
+
 
 if __name__ == "__main__":
     unittest.main()
+
