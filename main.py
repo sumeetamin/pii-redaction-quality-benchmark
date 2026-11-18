@@ -59,6 +59,32 @@ def detect(text, language=None):
     return sorted(spans)
 
 
+def redact_text(text, spans):
+    """Redact span unions against original offsets, including overlapping detections."""
+    value = str(text)
+    valid = sorted(
+        (int(start), int(end), str(label))
+        for start, end, label in spans
+        if 0 <= int(start) < int(end) <= len(value)
+    )
+    groups = []
+    for start, end, label in valid:
+        if groups and start < groups[-1][1]:
+            old_start, old_end, labels = groups[-1]
+            groups[-1] = (old_start, max(old_end, end), labels | {label})
+        else:
+            groups.append((start, end, {label}))
+    parts = []
+    cursor = 0
+    for start, end, labels in groups:
+        parts.append(value[cursor:start])
+        label = next(iter(labels)) if len(labels) == 1 else "multiple"
+        parts.append(f"[REDACTED:{label}]")
+        cursor = end
+    parts.append(value[cursor:])
+    return "".join(parts)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True)
@@ -103,10 +129,7 @@ def main():
         for _, _, label in missed:
             by_type[label]["fn"] += 1
 
-        value = str(text)
-        for start, end, label in sorted(predicted, reverse=True):
-            value = value[:start] + f"[REDACTED:{label}]" + value[end:]
-        redacted.append(value)
+        redacted.append(redact_text(text, predicted))
 
     precision = totals["tp"] / max(1, totals["tp"] + totals["fp"])
     recall = totals["tp"] / max(1, totals["tp"] + totals["fn"])
@@ -146,3 +169,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
