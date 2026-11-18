@@ -11,14 +11,15 @@ Uses the [Ai4Privacy OpenPII 1M dataset](https://huggingface.co/datasets/ai4priv
 | Measure | Result |
 |---|---:|
 | Labeled spans | 7,622 |
-| Exact-span precision | 69.5% |
-| Exact-span recall | 7.8% |
-| Exact-span F1 | 14.1% |
+| Exact-span precision | 87.8% |
+| Exact-span recall | 8.9% |
+| Exact-span F1 | 16.2% |
 | Email precision / recall | 98.7% / 96.8% |
-| Phone precision / recall | 13.3% / 9.4% |
+| Phone precision / recall | 55.3% / 21.2% |
+| Luhn-valid credit-card precision / recall | 66.7% / 13.9% |
 | SSN-format precision / recall | 100% / 6.1% |
 
-The regexes cover only email, US-formatted phone, and SSN patterns. Other labeled classes (names, addresses, dates, government IDs, and more) are intentionally unsupported, which drives overall recall down. Phone patterns also produce substantial false positives. These figures are a synthetic-data baseline, not assurance for real personal data or a production privacy filter.
+Email and US-formatted SSNs use regexes; phone detection uses libphonenumber with language-derived default regions; credit-card candidates must pass Luhn validation. The run found 681 exact-span matches, 95 false positives and 6,941 misses. Fifteen other labeled entity types (including names, addresses, dates and government IDs) remain unsupported, so overall recall is still only 8.9%. Phone detection still misses most labeled phones. This synthetic multilingual benchmark is not assurance for real personal data or a production privacy filter.
 
 ## Reproduce
 
