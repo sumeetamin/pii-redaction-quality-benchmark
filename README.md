@@ -1,6 +1,6 @@
 # PII Redaction Quality Benchmark
 
-A small exact-span evaluation of a deliberately limited regex redaction baseline. The benchmark keeps all text and redacted rows local and publishes aggregate metrics only.
+An exact-span evaluation of a deliberately limited PII redaction baseline. The benchmark keeps all text and redacted rows local and publishes aggregate metrics only. Evaluation scores each predicted span; when emitted masks overlap, the output merges them into one `[REDACTED:multiple]` marker so original offsets remain valid.
 
 ## Data
 
