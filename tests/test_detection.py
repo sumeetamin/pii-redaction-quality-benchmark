@@ -1,15 +1,29 @@
 import unittest
 
-from main import canonical_type, detect
+from main import canonical_type, detect, luhn_valid
 
 
 class PiiDetectionTests(unittest.TestCase):
     def test_detects_supported_exact_spans(self):
-        text = "Email alice@example.com; SSN 123-45-6789; phone 415-555-0132."
-        spans = detect(text)
+        text = "Email alice@example.com; SSN 123-45-6789; phone +1 650-253-0000."
+        spans = detect(text, "en")
         self.assertIn((text.index("alice@example.com"), text.index("alice@example.com") + len("alice@example.com"), "email"), spans)
         self.assertIn((text.index("123-45-6789"), text.index("123-45-6789") + len("123-45-6789"), "ssn"), spans)
-        self.assertIn((text.index("415-555-0132"), text.index("415-555-0132") + len("415-555-0132"), "phone"), spans)
+        self.assertIn((text.index("+1 650-253-0000"), text.index("+1 650-253-0000") + len("+1 650-253-0000"), "phone"), spans)
+
+    def test_detects_luhn_valid_card_and_rejects_bad_checksum(self):
+        text = "Card 4111 1111 1111 1111; fake 4111 1111 1111 1112."
+        spans = detect(text)
+        start = text.index("4111 1111 1111 1111")
+        self.assertIn((start, start + len("4111 1111 1111 1111"), "creditcardnumber"), spans)
+        self.assertTrue(luhn_valid("4111 1111 1111 1111"))
+        self.assertFalse(luhn_valid("4111 1111 1111 1112"))
+
+    def test_uses_explicit_international_number_without_language(self):
+        text = "Call +49 30 1234567."
+        spans = detect(text)
+        start = text.index("+49")
+        self.assertIn((start, start + len("+49 30 1234567"), "phone"), spans)
 
     def test_normalizes_dataset_label_aliases(self):
         self.assertEqual(canonical_type("Phone"), "phone")
