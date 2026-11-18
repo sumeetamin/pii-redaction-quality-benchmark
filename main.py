@@ -1,4 +1,4 @@
-"""Score an exact-span PII regex baseline on locally held labeled text."""
+"""Score a local exact-span PII baseline on labeled text."""
 import argparse
 import hashlib
 import json
@@ -7,14 +7,20 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
+import phonenumbers
 
 
 PATTERNS = {
     "email": re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
     "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
-    "phone": re.compile(r"(?<!\d)(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}(?!\d)"),
 }
+CARD_PATTERN = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
 TYPE_ALIASES = {"telephonenum": "phone", "socialnum": "ssn"}
+PHONE_REGIONS_BY_LANGUAGE = {
+    "bg": ["BG"], "de": ["DE"], "en": ["US", "GB", "CA", "AU"],
+    "fi": ["FI"], "fr": ["FR"], "it": ["IT"], "nl": ["NL"],
+    "sk": ["SK"], "sv": ["SE"],
+}
 
 
 def canonical_type(label):
@@ -22,12 +28,35 @@ def canonical_type(label):
     return TYPE_ALIASES.get(value, value)
 
 
-def detect(text):
-    return sorted(
+def luhn_valid(value):
+    digits = [int(char) for char in value if char.isdigit()]
+    if not 13 <= len(digits) <= 19:
+        return False
+    reversed_digits = digits[::-1]
+    checksum = sum(
+        digit if index % 2 == 0 else (digit * 2 - 9 if digit * 2 > 9 else digit * 2)
+        for index, digit in enumerate(reversed_digits)
+    )
+    return checksum % 10 == 0
+
+
+def detect(text, language=None):
+    """Return exact spans for supported PII types; phone parsing uses language regions."""
+    value = str(text)
+    spans = {
         (match.start(), match.end(), entity_type)
         for entity_type, pattern in PATTERNS.items()
-        for match in pattern.finditer(str(text))
-    )
+        for match in pattern.finditer(value)
+    }
+    for match in CARD_PATTERN.finditer(value):
+        if luhn_valid(match.group()):
+            spans.add((match.start(), match.end(), "creditcardnumber"))
+    language_code = "" if language is None or pd.isna(language) else str(language).lower()
+    regions = PHONE_REGIONS_BY_LANGUAGE.get(language_code, [None])
+    for region in regions:
+        for match in phonenumbers.PhoneNumberMatcher(value, region):
+            spans.add((match.start, match.end, "phone"))
+    return sorted(spans)
 
 
 def main():
@@ -46,7 +75,11 @@ def main():
     if args.text not in data or args.gold_spans not in data:
         raise SystemExit(f"Input must contain {args.text!r} and {args.gold_spans!r} columns.")
 
-    predictions = [detect(text) for text in data[args.text]]
+    languages = data["language"] if "language" in data else [None] * len(data)
+    predictions = [
+        detect(text, language)
+        for text, language in zip(data[args.text], languages)
+    ]
     totals = Counter(tp=0, fp=0, fn=0)
     by_type = defaultdict(Counter)
     redacted = []
@@ -100,7 +133,7 @@ def main():
             }
             for label, counts in sorted(by_type.items())
         },
-        "limitations": "Regexes cover email, US-formatted SSN, and US-formatted phone numbers only. Exact-span results on synthetic multilingual PII are not real-world privacy assurance; names, addresses, IDs, and other classes are intentionally unsupported. Raw text and row-level redactions must remain local.",
+        "limitations": "Email and US-formatted SSN use regexes. Phone numbers use libphonenumber with default regions inferred from the nine language codes in this sample; unknown languages detect only explicitly international numbers. Exact-span results on synthetic multilingual PII are not real-world privacy assurance; names, addresses, IDs, and other classes are intentionally unsupported. Raw text and row-level redactions must remain local.",
     }
     output = Path(args.out)
     output.mkdir(parents=True, exist_ok=True)
